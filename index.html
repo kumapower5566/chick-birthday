@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chick's Birthday Party</title>
+    <title>小鸡生日派对</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
@@ -25,13 +25,13 @@
 
 <div id="loading-screen">
     <div class="loader"></div>
-    <h2 class="text-2xl font-bold">Loading Birthday Magic...</h2>
-    <p class="mt-2 opacity-75">Setting up cameras and AI models</p>
-    <button id="start-btn" style="margin-top:24px;padding:12px 32px;font-size:1.1rem;font-weight:600;border:none;border-radius:999px;background:#854d0e;color:#facc15;cursor:pointer;display:none" onclick="this.style.display='none';startCamera()">🎉 Tap to Start Camera</button>
+    <h2 class="text-2xl font-bold">正在加载生日魔法...</h2>
+    <p class="mt-2 opacity-75">正在初始化摄像头和AI模型</p>
+    <button id="start-btn" style="margin-top:24px;padding:12px 32px;font-size:1.1rem;font-weight:600;border:none;border-radius:999px;background:#854d0e;color:#facc15;cursor:pointer;display:none" onclick="this.style.display='none';startCamera()">🎉 点击启动摄像头</button>
 </div>
 
 <div id="ui-layer">
-    <div id="hint" class="hint-card text-lg font-medium">Initializing...</div>
+    <div id="hint" class="hint-card text-lg font-medium">初始化中...</div>
 </div>
 
 <div id="canvas-container">
@@ -63,7 +63,7 @@
     function showCameraError(msg) {
         document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0a0a0a;color:#fff;text-align:center;gap:12px;padding:24px">
             <div style="font-size:2rem">📷</div>
-            <p style="font-size:1.1rem;font-weight:600">Camera Error</p>
+            <p style="font-size:1.1rem;font-weight:600">摄像头错误</p>
             <p style="opacity:0.5;font-size:0.85rem">${msg}</p>
         </div>`;
     }
@@ -88,7 +88,7 @@
 
     async function startCamera() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showCameraError('Camera API not supported');
+            showCameraError('您的设备不支持摄像头');
             return;
         }
 
@@ -111,7 +111,7 @@
         }
 
         if (!stream) {
-            showCameraError('Unable to access camera. Please allow camera permission.');
+            showCameraError('无法访问摄像头，请允许摄像头权限');
             return;
         }
 
@@ -124,7 +124,7 @@
         videoElement.play().then(() => {
             loadingScreen.style.display = 'none';
             state = 'NOD_FOR_HAT';
-            updateHint("Nod your head to put on the birthday hat! 🐣");
+            updateHint("点点头，戴上生日帽！🐣");
 
             async function detect() {
                 if (videoElement.readyState >= 1) {
@@ -151,7 +151,7 @@
                 videoElement.play().then(() => {
                     loadingScreen.style.display = 'none';
                     state = 'NOD_FOR_HAT';
-                    updateHint("Nod your head to put on the birthday hat! 🐣");
+                    updateHint("点点头，戴上生日帽！🐣");
 
                     async function detect() {
                         if (videoElement.readyState >= 1) {
@@ -173,7 +173,7 @@
                     }
                     renderLoop();
                 }).catch(err => {
-                    showCameraError('Could not start video: ' + err.message);
+                    showCameraError('无法启动摄像头: ' + err.message);
                 });
             });
         });
@@ -218,16 +218,16 @@
                 ctx.font = `${Math.max(18, canvasElement.width * 0.045)}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('🐣 Position your face in the camera', canvasElement.width / 2, canvasElement.height / 2);
+                ctx.fillText('🐣 请将脸对准摄像头', canvasElement.width / 2, canvasElement.height / 2);
                 ctx.font = `${Math.max(14, canvasElement.width * 0.03)}px sans-serif`;
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.fillText('Make sure your face is visible and well lit', canvasElement.width / 2, canvasElement.height / 2 + 40);
+                ctx.fillText('确保脸部清晰可见，光线充足', canvasElement.width / 2, canvasElement.height / 2 + 40);
             } else {
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.font = `${Math.max(16, canvasElement.width * 0.04)}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('Loading AI model...', canvasElement.width / 2, canvasElement.height / 2);
+                ctx.fillText('AI模型加载中...', canvasElement.width / 2, canvasElement.height / 2);
             }
         }
 
@@ -253,14 +253,14 @@
                 if (nodCount > 5) { // reduced threshold for easier triggering
                     hatOn = true;
                     state = 'CAKE_IN';
-                    updateHint("Happy Birthday! Here comes the cake... 🎂");
+                    updateHint("生日快乐！蛋糕来啦... 🎂");
                     
                     let animObj = { p: 0 };
                     gsap.to(animObj, { p: 1, duration: 2, ease: "back.out(1.7)", 
                         onUpdate: () => { cakeProgress = animObj.p; },
                         onComplete: () => {
                             state = 'WISH';
-                            updateHint("Put your hands together to make a wish! 🙏");
+                            updateHint("双手合十，许个愿吧！🙏");
                         }
                     });
                 }
@@ -287,7 +287,7 @@
                 if (!isWishing) {
                     isWishing = true;
                     candleLit = true;
-                    updateHint("Make a wish... Now open your mouth to blow! 💨");
+                    updateHint("许个愿吧... 然后张开嘴吹蜡烛！💨");
                     setTimeout(() => { 
                         if (state === 'WISH') state = 'BLOW'; 
                     }, 2000);
@@ -304,7 +304,7 @@
                 candleLit = false;
                 candleBlown = true;
                 state = 'FINISHED';
-                updateHint("🎉 Happy Birthday! 🎉");
+                updateHint("🎉 生日快乐！🎉");
                 createConfetti();
             }
         }
