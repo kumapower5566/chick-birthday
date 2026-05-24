@@ -214,22 +214,15 @@
         ctx.save();
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-        // Mirror
-        ctx.translate(canvasElement.width, 0);
-        ctx.scale(-1, 1);
-
-        // Black background
+        // Black background (non-mirrored)
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-        if (faceLandmarks) {
-            processInteractions();
-            drawChick();
-            if (hatOn) drawHat();
-            if (cakeProgress > 0) drawCake();
-            if (candleBlown) drawConfetti();
-        } else {
-            // Show waiting prompt when no face is detected
+        ctx.restore();
+
+        // Draw waiting prompt BEFORE mirror, so text is not flipped
+        if (!faceLandmarks) {
+            ctx.save();
             if (mediapipeReady) {
                 ctx.fillStyle = 'rgba(255,255,255,0.7)';
                 ctx.font = `${Math.max(18, canvasElement.width * 0.045)}px sans-serif`;
@@ -246,7 +239,20 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText('AI模型加载中...', canvasElement.width / 2, canvasElement.height / 2);
             }
+            ctx.restore();
+            return;
         }
+
+        // Mirror transform for AR overlay
+        ctx.save();
+        ctx.translate(canvasElement.width, 0);
+        ctx.scale(-1, 1);
+
+        processInteractions();
+        drawChick();
+        if (hatOn) drawHat();
+        if (cakeProgress > 0) drawCake();
+        if (candleBlown) drawConfetti();
 
         ctx.restore();
     }
