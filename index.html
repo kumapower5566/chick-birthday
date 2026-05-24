@@ -27,6 +27,7 @@
     <div class="loader"></div>
     <h2 class="text-2xl font-bold">Loading Birthday Magic...</h2>
     <p class="mt-2 opacity-75">Setting up cameras and AI models</p>
+    <button id="start-btn" style="margin-top:24px;padding:12px 32px;font-size:1.1rem;font-weight:600;border:none;border-radius:999px;background:#854d0e;color:#facc15;cursor:pointer;display:none" onclick="this.style.display='none';startCamera()">🎉 Tap to Start Camera</button>
 </div>
 
 <div id="ui-layer">
@@ -52,6 +53,8 @@
     let lastNoseY = 0;
     let nodCount = 0;
     let confettis = [];
+    let mediapipeReady = false;
+    let lastFrameTime = 0;
 
     // Interaction vars
     let faceLandmarks = null;
@@ -71,6 +74,7 @@
     });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
     faceMesh.onResults(onFaceResults);
+    faceMesh.onError = (err) => { console.error('FaceMesh error:', err); };
 
     const hands = new Hands({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`
@@ -87,19 +91,92 @@
             showCameraError('Camera API not supported');
             return;
         }
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await faceMesh.send({image: videoElement});
-                await hands.send({image: videoElement});
-            },
-            width: 1280,
-            height: 720
-        });
-        camera.start().then(() => {
+
+        // Mobile-friendly constraints with fallbacks
+        const constraintSets = [
+            { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },
+            { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } },
+            { video: { facingMode: 'user' } },
+            { video: true }
+        ];
+
+        let stream = null;
+        for (const constraints of constraintSets) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                break;
+            } catch(e) {
+                console.log('Camera constraint failed:', e);
+            }
+        }
+
+        if (!stream) {
+            showCameraError('Unable to access camera. Please allow camera permission.');
+            return;
+        }
+
+        videoElement.srcObject = stream;
+        videoElement.setAttribute('playsinline', '');
+        videoElement.setAttribute('autoplay', '');
+        videoElement.setAttribute('muted', '');
+
+        // Try to play immediately (works on most browsers including iOS Safari)
+        videoElement.play().then(() => {
             loadingScreen.style.display = 'none';
             state = 'NOD_FOR_HAT';
             updateHint("Nod your head to put on the birthday hat! 🐣");
-        }).catch(e => showCameraError(e.message));
+
+            async function detect() {
+                if (videoElement.readyState >= 1) {
+                    try {
+                        await faceMesh.send({image: videoElement});
+                        await hands.send({image: videoElement});
+                        mediapipeReady = true;
+                    } catch(e) {
+                        console.log('MediaPipe send error (non-fatal):', e);
+                    }
+                }
+                requestAnimationFrame(detect);
+            }
+            detect();
+
+            function renderLoop() {
+                draw();
+                requestAnimationFrame(renderLoop);
+            }
+            renderLoop();
+        }).catch(() => {
+            // Fallback: wait for loadedmetadata then play
+            videoElement.addEventListener('loadedmetadata', () => {
+                videoElement.play().then(() => {
+                    loadingScreen.style.display = 'none';
+                    state = 'NOD_FOR_HAT';
+                    updateHint("Nod your head to put on the birthday hat! 🐣");
+
+                    async function detect() {
+                        if (videoElement.readyState >= 1) {
+                            try {
+                                await faceMesh.send({image: videoElement});
+                                await hands.send({image: videoElement});
+                                mediapipeReady = true;
+                            } catch(e) {
+                                console.log('MediaPipe send error (non-fatal):', e);
+                            }
+                        }
+                        requestAnimationFrame(detect);
+                    }
+                    detect();
+
+                    function renderLoop() {
+                        draw();
+                        requestAnimationFrame(renderLoop);
+                    }
+                    renderLoop();
+                }).catch(err => {
+                    showCameraError('Could not start video: ' + err.message);
+                });
+            });
+        });
     }
 
     function onFaceResults(results) {
@@ -119,13 +196,13 @@
     function draw() {
         ctx.save();
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
+
         // Mirror
         ctx.translate(canvasElement.width, 0);
         ctx.scale(-1, 1);
 
-        // Pure black background (no video)
-        ctx.fillStyle = '#000000';
+        // Black background
+        ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
         if (faceLandmarks) {
@@ -134,10 +211,27 @@
             if (hatOn) drawHat();
             if (cakeProgress > 0) drawCake();
             if (candleBlown) drawConfetti();
+        } else {
+            // Show waiting prompt when no face is detected
+            if (mediapipeReady) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = `${Math.max(18, canvasElement.width * 0.045)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🐣 Position your face in the camera', canvasElement.width / 2, canvasElement.height / 2);
+                ctx.font = `${Math.max(14, canvasElement.width * 0.03)}px sans-serif`;
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.fillText('Make sure your face is visible and well lit', canvasElement.width / 2, canvasElement.height / 2 + 40);
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = `${Math.max(16, canvasElement.width * 0.04)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Loading AI model...', canvasElement.width / 2, canvasElement.height / 2);
+            }
         }
 
         ctx.restore();
-        requestAnimationFrame(() => {}); // Driven by camera onFrame
     }
 
     function processInteractions() {
@@ -416,7 +510,7 @@
     }
 
     function drawConfetti() {
-        confettis.forEach((p, i) => {
+        confettis = confettis.filter(p => {
             ctx.fillStyle = p.color;
             ctx.save();
             ctx.translate(p.x, p.y);
@@ -426,18 +520,31 @@
             p.x += p.vx;
             p.y += p.vy;
             p.rot += 0.1;
-            if (p.y > canvasElement.height) confettis.splice(i, 1);
+            return p.y <= canvasElement.height;
         });
     }
 
     function resize() {
-        canvasElement.width = window.innerWidth;
-        canvasElement.height = window.innerHeight;
+        const vv = window.visualViewport;
+        const w = vv ? Math.round(vv.width) : window.innerWidth;
+        const h = vv ? Math.round(vv.height) : window.innerHeight;
+        canvasElement.width = w;
+        canvasElement.height = h;
     }
 
     window.addEventListener('resize', resize);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', resize);
+    }
     resize();
-    startCamera();
+
+    // iOS Safari requires getUserMedia to be triggered by user gesture
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        document.getElementById('start-btn').style.display = 'inline-block';
+    } else {
+        startCamera();
+    }
 
 </script>
 </body>
